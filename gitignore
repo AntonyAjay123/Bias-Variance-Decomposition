@@ -1,0 +1,4 @@
+# Ignore all folders named 'data' anywhere in the repository
+data/
+**/data/
+0-1 loss/data/cifar-10-python.tar.gz
