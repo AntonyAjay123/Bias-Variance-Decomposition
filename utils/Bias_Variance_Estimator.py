@@ -106,8 +106,6 @@ def train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X
                 optimizer.step()
                 epoch_loss += loss.item() * x.size(0)
             avg_epoch_loss = epoch_loss / len(train_dataset)
-            train_loss.append(avg_epoch_loss)
-            
             # Validation step
             model.eval()
             with torch.no_grad():
@@ -131,8 +129,13 @@ def train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X
         # Load the best model to use for prediction
         model.load_state_dict(best_state_dict)
 
-        ## Model evaluation
         model.eval()
+        with torch.no_grad():
+            train_output = model(X_train_tensor)
+            final_train_loss = loss_fn(train_output, y_train_tensor).item()
+        train_loss.append(final_train_loss)
+
+        ## Model evaluation
         if task == 'classification':
             with torch.no_grad():
                 test_output  = model(X_test_tensor)
@@ -240,15 +243,16 @@ def estimate_bias_variance_mse(model_class, X_train, y_train, X_test, y_test, lo
     y_test = y_test.squeeze()
     bias_sq, variance = get_bvd_mse(all_preds_np, y_test)
     total_error = np.mean((all_preds_np - y_test.squeeze()) ** 2)
+    test_loss = np.mean((np.mean(all_preds_np, axis=0) - y_test) ** 2)
     error_sum = bias_sq + variance
     avg_train_loss = np.mean(train_loss)
 
     print(f"\n--- Final Results ---")
-    print(f"Bias:    {bias_sq:.4f}")
+    print(f"Bias²:    {bias_sq:.4f}")
     print(f"Variance: {variance:.4f}")
     print(f"Total error: {total_error:.4f}")
     print(f"Bias² + Variance: {(bias_sq + variance):.4f}")
-    return bias_sq,variance,total_error,error_sum,avg_train_loss
+    return bias_sq,variance,total_error,error_sum,avg_train_loss,test_loss
 
 
 # In[ ]:
@@ -301,6 +305,7 @@ def estimate_bias_variance_0_1(model_class,loss_fn, X_train, y_train, X_test, y_
     bias_arr = (mode_preds!=y_test).astype(float)
 
     var_arr = (all_preds!=mode_preds).mean(axis=0)
+    test_loss = np.mean((np.mean(all_preds, axis=0) - y_test) ** 2)
 
     expected_loss_arr = np.where(bias_arr == 0,var_arr,1 - var_arr)
     avg_bias = bias_arr.mean()
@@ -309,6 +314,7 @@ def estimate_bias_variance_0_1(model_class,loss_fn, X_train, y_train, X_test, y_
     avg_exp_loss = (all_preds != y_test).mean()
     empirical_01_loss = (all_preds!=y_test).mean()
     avg_train_loss = np.mean(train_loss)
+    
     print(f"\n--- Final 0-1 Loss Decomposition Results ---")
     print(f"Average Bias         : {avg_bias:.4f}")
     print(f"Average Variance     : {avg_var:.4f}")
@@ -317,7 +323,7 @@ def estimate_bias_variance_0_1(model_class,loss_fn, X_train, y_train, X_test, y_
     print(f"Empirical 0-1 Loss   : {empirical_01_loss:.4f}")
     print(f"Bias - Variance?     : {avg_bias - avg_var:.4f} ")
 
-    return avg_bias, avg_var, avg_exp_loss, empirical_01_loss,train_loss, {
+    return avg_bias, avg_var, avg_exp_loss, empirical_01_loss,avg_train_loss,test_loss, {
         'bias': bias_arr,
         'variance': var_arr,
         'expected_loss': expected_loss_arr
