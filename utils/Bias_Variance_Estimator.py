@@ -82,7 +82,7 @@ def train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X
 
         ## Data Loaders
         train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        train_loader = DataLoader(train_dataset, batch_size=len(X_train_tensor), shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
         ## Model initialization
         model = model_class(**model_kwargs).to(device)
